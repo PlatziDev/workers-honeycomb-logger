@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // This interfaces are referenced from
 // https://developers.cloudflare.com/queues/platform/javascript-apis/
-
+import { Span } from './logging'
 export interface MessageBatch<Body = any> {
   readonly queue: string
   readonly messages: Message<Body>[]
@@ -60,17 +60,17 @@ export type MessageSendRequest<Body = any> = {
 
 // -------- QUEUES INTERFACES --------
 
-export interface QueueHanderResult {
+export interface QueueHanderResult<T> {
   success: boolean
-  data: any
+  data: T
 }
 
-declare type ExportedHandlerQueueHandler<Env = unknown> = (
+declare type ExportedHandlerQueueHandler<Env = unknown, T = any> = (
   request: MessageBatch,
   env: Env,
   ctx: ExecutionContext,
-  span: any,
-) => QueueHanderResult | Promise<QueueHanderResult>
+  span: Span,
+) => QueueHanderResult<T> | Promise<QueueHanderResult<T>>
 
 export interface ExportedHandler<Env = unknown> {
   fetch?: ExportedHandlerFetchHandler<Env>
@@ -192,7 +192,7 @@ function proxyEnv(env: any, tracer: RequestTracer): any {
   })
 }
 
-function workerProxy<T>(config: ResolvedConfig, mod: ExportedHandler<T>): ExportedHandler<T> {
+function workerProxy<T, QueueResult = any>(config: ResolvedConfig, mod: ExportedHandler<T>): ExportedHandler<T> {
   return {
     fetch: new Proxy(mod.fetch!, {
       apply: (target, thisArg, argArray): Promise<Response> => {
@@ -276,7 +276,7 @@ function workerProxy<T>(config: ResolvedConfig, mod: ExportedHandler<T>): Export
         try {
           const result: any = Reflect.apply(target, thisArg, argArray)
 
-          result.then((response: QueueHanderResult) => {
+          result.then((response: QueueHanderResult<QueueResult>) => {
             tracer.finishQueueResponse(response)
             ctx.waitUntil(tracer.sendEvents())
             return response

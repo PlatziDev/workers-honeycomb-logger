@@ -35,17 +35,17 @@ import { QueueHanderResult, MessageBatch } from '../../../dist/index'
 import { Span } from '../../../dist/index'
 
 const worker = {
-  async queue(request: MessageBatch, env, ctx, span: Span): Promise<QueueHanderResult> {
+  async queue(request: MessageBatch, env, ctx, span: Span): Promise<QueueHanderResult<boolean>> {
     
     const result = await span.fetch('https://cloudflare.com')
     return {
       success: true,
-      data: result.json(),
+      data: result.ok,
     }
   },
 }
 
-const sampleQueue = (data: QueueHanderResult) => {
+const sampleQueue = (data: QueueHanderResult<boolean>) => {
   if (!data.success) {
     return 1;
   }
