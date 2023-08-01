@@ -9,9 +9,6 @@ on:
       - 'alpha'
       - 'infra'
   push:
-    paths:
-      - '!packages/testing/**/*.md'
-      - 'packages/testing/**'
     branches:
       - '[0-9]+.x'
       - 'master'
