@@ -1,24 +1,24 @@
-name: platzi/testing library
+name: platzi/Honeycomb library
 on:
   pull_request:
     branches:
-      - "[0-9]+.x"
-      - "master"
-      - "next"
-      - "beta"
-      - "alpha"
-      - "infra"
+      - '[0-9]+.x'
+      - 'master'
+      - 'next'
+      - 'beta'
+      - 'alpha'
+      - 'infra'
   push:
     paths:
-      - "!packages/testing/**/*.md"
-      - "packages/testing/**"
+      - '!packages/testing/**/*.md'
+      - 'packages/testing/**'
     branches:
-      - "[0-9]+.x"
-      - "master"
-      - "next"
-      - "beta"
-      - "alpha"
-      - "infra"
+      - '[0-9]+.x'
+      - 'master'
+      - 'next'
+      - 'beta'
+      - 'alpha'
+      - 'infra'
 jobs:
   common:
     runs-on: ubuntu-latest
