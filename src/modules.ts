@@ -29,12 +29,34 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+import { Span } from './logging'
+import { MessageBatch } from './queues'
+
+export interface QueueHanderResult<T> {
+  success: boolean
+  data: T
+}
+
+declare type ExportedHandlerQueueHandler<Env = unknown, T = any> = (
+  request: MessageBatch,
+  env: Env,
+  ctx: ExecutionContext,
+  span: Span,
+) => QueueHanderResult<T> | Promise<QueueHanderResult<T>>
+
+export interface ExportedHandler<Env = unknown> {
+  fetch?: ExportedHandlerFetchHandler<Env>
+  scheduled?: ExportedHandlerScheduledHandler<Env>
+  queue?: ExportedHandlerQueueHandler<Env>
+}
+
 import { Config, resolve, ResolvedConfig } from './config'
 import { RequestTracer } from './logging'
 
 export interface HoneycombEnv {
   HONEYCOMB_API_KEY?: string
   HONEYCOMB_DATASET?: string
+  QUEUE_URL?: string
 }
 
 function cacheTraceId(trace_id: string): void {
@@ -142,7 +164,7 @@ function proxyEnv(env: any, tracer: RequestTracer): any {
   })
 }
 
-function workerProxy<T>(config: ResolvedConfig, mod: ExportedHandler<T>): ExportedHandler<T> {
+function workerProxy<T, QueueResult = any>(config: ResolvedConfig, mod: ExportedHandler<T>): ExportedHandler<T> {
   return {
     fetch: new Proxy(mod.fetch!, {
       apply: (target, thisArg, argArray): Promise<Response> => {
@@ -195,6 +217,50 @@ function workerProxy<T>(config: ResolvedConfig, mod: ExportedHandler<T>): Export
           }
         } catch (err) {
           tracer.finishResponse(undefined, err as Error)
+          ctx.waitUntil(tracer.sendEvents())
+          throw err
+        }
+      },
+    }),
+    queue: new Proxy(mod.queue!, {
+      apply: (target, thisArg, argArray): Promise<any> => {
+        const env = argArray[1] as HoneycombEnv
+        const request = new Request(env.QUEUE_URL || config.queueUrl)
+
+        const tracer = new RequestTracer(request, config)
+
+        request.tracer = tracer
+        argArray[3] = tracer
+        argArray[1] = proxyEnv(env, tracer)
+        config.apiKey = env.HONEYCOMB_API_KEY || config.apiKey
+
+        if (!config.apiKey || !config.dataset) {
+          console.error(
+            new Error('Need both HONEYCOMB_API_KEY and HONEYCOMB_DATASET to be configured. Skipping trace.'),
+          )
+          return Reflect.apply(target, thisArg, argArray)
+        }
+
+        const ctx = argArray[2] as ExecutionContext
+
+        // TODO: proxy ctx.waitUntil
+
+        try {
+          const result: any = Reflect.apply(target, thisArg, argArray)
+
+          result.then((response: QueueHanderResult<QueueResult>) => {
+            tracer.finishQueueResponse(response)
+            ctx.waitUntil(tracer.sendEvents())
+            return response
+          })
+          result.catch((err: Error) => {
+            tracer.finishQueueResponse(undefined, err)
+            ctx.waitUntil(tracer.sendEvents())
+            throw err
+          })
+          return result
+        } catch (err) {
+          tracer.finishQueueResponse(undefined, err as Error)
           ctx.waitUntil(tracer.sendEvents())
           throw err
         }

@@ -32,6 +32,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import { HttpStatusBuckets, ResolvedConfig } from './config'
 import { TraceContext } from './tracecontext'
 
+import { QueueHanderResult } from './modules'
+
 declare global {
   interface FetchEvent {
     waitUntilTracer: Span
@@ -207,6 +209,17 @@ export class RequestTracer extends Span {
     if (response) {
       this.addResponse(response)
     } else if (error) {
+      this.addData({ exception: true, responseException: error.toString() })
+      if (error.stack) this.addData({ stacktrace: error.stack })
+    }
+    this.finish()
+  }
+
+  public finishQueueResponse(response?: QueueHanderResult<any>, error?: Error) {
+    if (response) {
+      this.addData({ queueResponse: response.data })
+    }
+    if (error) {
       this.addData({ exception: true, responseException: error.toString() })
       if (error.stack) this.addData({ stacktrace: error.stack })
     }
