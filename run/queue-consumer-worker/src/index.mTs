@@ -54,6 +54,8 @@ const sampleQueue = (data: QueueHanderResult<boolean>) => {
   return 10
 }
 
+
+
 const config = {
   apiKey: '__HONEYCOMB_API_KEY__',
   dataset: 'my-first-dataset',
