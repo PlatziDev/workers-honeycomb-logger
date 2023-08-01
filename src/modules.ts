@@ -29,36 +29,8 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-// -------- QUEUES INTERFACES --------
-
-// This interfaces are referenced from
-// https://developers.cloudflare.com/queues/platform/javascript-apis/
 import { Span } from './logging'
-export interface MessageBatch<Body = any> {
-  readonly queue: string
-  readonly messages: Message<Body>[]
-  ackAll(): void
-  retryAll(): void
-}
-
-export interface Queue<Body = any> {
-  send(body: Body): Promise<void>
-  sendBatch(messages: Iterable<MessageSendRequest<Body>>): Promise<void>
-}
-
-export interface Message<Body = any> {
-  readonly id: string
-  readonly timestamp: Date
-  readonly body: Body
-  ack(): void
-  retry(): void
-}
-
-export type MessageSendRequest<Body = any> = {
-  body: Body
-}
-
-// -------- QUEUES INTERFACES --------
+import { MessageBatch } from './queues'
 
 export interface QueueHanderResult<T> {
   success: boolean

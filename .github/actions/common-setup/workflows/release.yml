@@ -1,0 +1,83 @@
+name: platzi/testing library
+on:
+  pull_request:
+    branches:
+      - "[0-9]+.x"
+      - "master"
+      - "next"
+      - "beta"
+      - "alpha"
+      - "infra"
+  push:
+    paths:
+      - "!packages/testing/**/*.md"
+      - "packages/testing/**"
+    branches:
+      - "[0-9]+.x"
+      - "master"
+      - "next"
+      - "beta"
+      - "alpha"
+      - "infra"
+jobs:
+  common:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: Setup action
+        uses: ./.github/actions/common-setup
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-domain: ${{ secrets.SR_CA_DOMAIN }}
+  release:
+    needs: common
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: Setup action
+        uses: ./.github/actions/common-setup
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-domain: ${{ secrets.SR_CA_DOMAIN }}
+      - name: Build
+        run: yarn build --filter=@platzi/honeycomb-workers
+      - name: Release
+        uses: cycjimmy/semantic-release-action@v3
+        with:
+          semantic_version: 19.0.3
+          branches: |
+            [
+              '+([0-9])?(.{+([0-9]),x}).x',
+              'master',
+              'next',
+              {name: 'beta', prerelease: true},
+              {name: 'alpha', prerelease: true},
+              {name: 'infra', prerelease: true}
+            ]
+          extends: |
+            semantic-release-monorepo@7.0.5
+          extra_plugins: |
+            @semantic-release/changelog@6.0.0
+            @semantic-release/git@^10.0.0
+          working_directory: ./packages/testing
+          tag_format: platzi-testing-${version}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GB_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ secrets.GB_ACCESS_TOKEN }}

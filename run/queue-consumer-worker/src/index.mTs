@@ -31,7 +31,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import { wrapModule } from '../../../dist/index'
 
-import { QueueHanderResult, MessageBatch } from '../../../dist/index'
+import { QueueHanderResult } from '../../../dist/index'
+import { MessageBatch } from '../../../dist/queues'
+
 import { Span } from '../../../dist/index'
 
 const worker = {
